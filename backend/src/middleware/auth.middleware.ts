@@ -1,0 +1,39 @@
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { AppError } from './error.middleware';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'mini-design-canvas-jwt-secret-key-2024';
+
+export interface AuthPayload {
+  id: string;
+  email: string;
+}
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: AuthPayload;
+    }
+  }
+}
+
+export const requireAuth = (
+  req: Request,
+  _res: Response,
+  next: NextFunction
+): void => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    next(new AppError(401, 'Authentication required'));
+    return;
+  }
+
+  const token = authHeader.slice(7).trim();
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    req.user = decoded;
+    next();
+  } catch {
+    next(new AppError(401, 'Invalid or expired token'));
+  }
+};
