@@ -6,7 +6,8 @@ import type {
   User,
 } from "@/types/canvas";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+const BASE_URL = RAW_BASE_URL.replace(/\/+$/, "");
 
 interface ApiResponse<T> {
   data: T;

@@ -7,7 +7,8 @@ import rateLimit from 'express-rate-limit';
 import canvasRoutes from './routes/canvas.routes';
 import authRoutes from './routes/auth.routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
-import { isDBConnected } from './db';
+import { connectDB, isDBConnected } from './db';
+import { config } from './config/env';
 
 export function createApp(corsOrigins: string[]): express.Application {
   const app = express();
@@ -40,7 +41,8 @@ export function createApp(corsOrigins: string[]): express.Application {
         if (
           corsOrigins.includes('*') ||
           corsOrigins.includes(origin) ||
-          // Allow Vercel preview deployment URLs if origins includes a vercel.app domain
+          origin.endsWith('.vercel.app') ||
+          origin === 'http://localhost:3000' ||
           corsOrigins.some((o) => o.includes('vercel.app') && origin.endsWith('.vercel.app'))
         ) {
           return callback(null, true);
@@ -53,6 +55,20 @@ export function createApp(corsOrigins: string[]): express.Application {
       maxAge: 86400, // 24 hours
     })
   );
+
+  // Ensure database connection is ready for serverless requests on Vercel
+  if (process.env.VERCEL) {
+    app.use(async (req, _res, next) => {
+      if (req.path === '/health') return next();
+      try {
+        await connectDB(config.MONGODB_URI);
+        next();
+      } catch (err) {
+        console.error('[DB] Serverless connection error:', err);
+        next(err);
+      }
+    });
+  }
 
   // Rate limiters
   const generalLimiter = rateLimit({
@@ -82,7 +98,14 @@ export function createApp(corsOrigins: string[]): express.Application {
   app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
   // Live health probe
-  app.get('/health', (_req, res) => {
+  app.get('/health', async (_req, res) => {
+    if (process.env.VERCEL && !isDBConnected()) {
+      try {
+        await connectDB(config.MONGODB_URI);
+      } catch {
+        // ignore, dbReady check below handles status
+      }
+    }
     const dbReady = isDBConnected();
     const status = dbReady ? 200 : 503;
     res.status(status).json({
