@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from "react";
+import React, { useRef, useCallback, useEffect, forwardRef, useImperativeHandle, useState } from "react";
 import type Konva from "konva";
 import {
   Stage,
@@ -8,6 +8,7 @@ import {
   Circle,
   Text,
   Transformer,
+  Line,
 } from "react-konva";
 import type {
   CanvasElement,
@@ -32,6 +33,13 @@ interface CanvasStageProps {
   onUpdate: (id: string, patch: Partial<CanvasElement>) => void;
   onHistorySnapshot: () => void;
 }
+
+interface GuideLine {
+  points: number[];
+  orientation: "V" | "H";
+}
+
+const SNAP_THRESHOLD = 6;
 
 /** Normalize a Konva node after transformer resize: absorb scaleX/scaleY into dimensions */
 function normalizeNode(
@@ -76,16 +84,145 @@ function normalizeNode(
   return { x: node.x(), y: node.y(), rotation: node.rotation() };
 }
 
+/** Collect snapping lines from artboard and all other elements */
+function getLineGuideStops(
+  skipId: string,
+  elements: CanvasElement[],
+  artboard: ArtboardDimensions
+) {
+  // Snap to artboard boundaries and center
+  const vertical = [0, Math.round(artboard.width / 2), artboard.width];
+  const horizontal = [0, Math.round(artboard.height / 2), artboard.height];
+
+  // Snap to edges and centers of other visible elements
+  elements.forEach((el) => {
+    if (el.id === skipId || el.visible === false) return;
+
+    if (el.type === "rect") {
+      const r = el as RectElement;
+      vertical.push(Math.round(r.x), Math.round(r.x + r.width / 2), Math.round(r.x + r.width));
+      horizontal.push(Math.round(r.y), Math.round(r.y + r.height / 2), Math.round(r.y + r.height));
+    } else if (el.type === "circle") {
+      const c = el as CircleElement;
+      vertical.push(Math.round(c.x - c.radius), Math.round(c.x), Math.round(c.x + c.radius));
+      horizontal.push(Math.round(c.y - c.radius), Math.round(c.y), Math.round(c.y + c.radius));
+    } else if (el.type === "text") {
+      const t = el as TextElement;
+      const h = Math.round(t.fontSize * 1.3);
+      vertical.push(Math.round(t.x), Math.round(t.x + t.width / 2), Math.round(t.x + t.width));
+      horizontal.push(Math.round(t.y), Math.round(t.y + h / 2), Math.round(t.y + h));
+    }
+  });
+
+  return { vertical, horizontal };
+}
+
+/** Get bounding box and alignment edges for currently dragged node */
+function getObjectSnappingEdges(node: Konva.Node) {
+  const box = node.getClientRect({ relativeTo: node.getLayer() ?? undefined });
+  const absX = node.x();
+  const absY = node.y();
+
+  return {
+    vertical: [
+      {
+        guide: Math.round(box.x),
+        offset: Math.round(absX - box.x),
+        snap: "start",
+      },
+      {
+        guide: Math.round(box.x + box.width / 2),
+        offset: Math.round(absX - (box.x + box.width / 2)),
+        snap: "center",
+      },
+      {
+        guide: Math.round(box.x + box.width),
+        offset: Math.round(absX - (box.x + box.width)),
+        snap: "end",
+      },
+    ],
+    horizontal: [
+      {
+        guide: Math.round(box.y),
+        offset: Math.round(absY - box.y),
+        snap: "start",
+      },
+      {
+        guide: Math.round(box.y + box.height / 2),
+        offset: Math.round(absY - (box.y + box.height / 2)),
+        snap: "center",
+      },
+      {
+        guide: Math.round(box.y + box.height),
+        offset: Math.round(absY - (box.y + box.height)),
+        snap: "end",
+      },
+    ],
+  };
+}
+
+/** Find closest matching guidelines within SNAP_THRESHOLD */
+function getGuides(
+  lineGuideStops: { vertical: number[]; horizontal: number[] },
+  itemBounds: ReturnType<typeof getObjectSnappingEdges>,
+  artboard: ArtboardDimensions
+) {
+  const resultV: { lineGuide: number; diff: number; snap: string; offset: number }[] = [];
+  const resultH: { lineGuide: number; diff: number; snap: string; offset: number }[] = [];
+
+  lineGuideStops.vertical.forEach((lineGuide) => {
+    itemBounds.vertical.forEach((itemBound) => {
+      const diff = Math.abs(lineGuide - itemBound.guide);
+      if (diff <= SNAP_THRESHOLD) {
+        resultV.push({ lineGuide, diff, snap: itemBound.snap, offset: itemBound.offset });
+      }
+    });
+  });
+
+  lineGuideStops.horizontal.forEach((lineGuide) => {
+    itemBounds.horizontal.forEach((itemBound) => {
+      const diff = Math.abs(lineGuide - itemBound.guide);
+      if (diff <= SNAP_THRESHOLD) {
+        resultH.push({ lineGuide, diff, snap: itemBound.snap, offset: itemBound.offset });
+      }
+    });
+  });
+
+  const guides: GuideLine[] = [];
+  const minV = resultV.sort((a, b) => a.diff - b.diff)[0];
+  const minH = resultH.sort((a, b) => a.diff - b.diff)[0];
+
+  if (minV) {
+    guides.push({
+      points: [minV.lineGuide, 0, minV.lineGuide, artboard.height],
+      orientation: "V",
+    });
+  }
+
+  if (minH) {
+    guides.push({
+      points: [0, minH.lineGuide, artboard.width, minH.lineGuide],
+      orientation: "H",
+    });
+  }
+
+  return { guides, minV, minH };
+}
+
 function RectShape({
   el,
   onSelect,
   onUpdate,
-  onHistorySnapshot,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
 }: {
   el: RectElement;
   onSelect: () => void;
   onUpdate: (patch: Partial<CanvasElement>) => void;
-  onHistorySnapshot: () => void;
+  onDragStart: () => void;
+  onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
 }) {
   const ref = useRef<Konva.Rect>(null);
 
@@ -105,11 +242,10 @@ function RectShape({
       draggable={!el.locked}
       onClick={onSelect}
       onTap={onSelect}
-      onDragStart={onHistorySnapshot}
-      onDragEnd={(e) => {
-        onUpdate({ x: e.target.x(), y: e.target.y() } as Partial<CanvasElement>);
-      }}
-      onTransformStart={onHistorySnapshot}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
+      onTransformStart={onDragStart}
       onTransformEnd={() => {
         if (!ref.current) return;
         onUpdate(normalizeNode(ref.current, el));
@@ -122,12 +258,16 @@ function CircleShape({
   el,
   onSelect,
   onUpdate,
-  onHistorySnapshot,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
 }: {
   el: CircleElement;
   onSelect: () => void;
   onUpdate: (patch: Partial<CanvasElement>) => void;
-  onHistorySnapshot: () => void;
+  onDragStart: () => void;
+  onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
 }) {
   const ref = useRef<Konva.Circle>(null);
 
@@ -146,11 +286,10 @@ function CircleShape({
       draggable={!el.locked}
       onClick={onSelect}
       onTap={onSelect}
-      onDragStart={onHistorySnapshot}
-      onDragEnd={(e) => {
-        onUpdate({ x: e.target.x(), y: e.target.y() } as Partial<CanvasElement>);
-      }}
-      onTransformStart={onHistorySnapshot}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
+      onTransformStart={onDragStart}
       onTransformEnd={() => {
         if (!ref.current) return;
         onUpdate(normalizeNode(ref.current, el));
@@ -163,12 +302,16 @@ function TextShape({
   el,
   onSelect,
   onUpdate,
-  onHistorySnapshot,
+  onDragStart,
+  onDragMove,
+  onDragEnd,
 }: {
   el: TextElement;
   onSelect: () => void;
   onUpdate: (patch: Partial<CanvasElement>) => void;
-  onHistorySnapshot: () => void;
+  onDragStart: () => void;
+  onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
 }) {
   const ref = useRef<Konva.Text>(null);
 
@@ -190,11 +333,10 @@ function TextShape({
       draggable={!el.locked}
       onClick={onSelect}
       onTap={onSelect}
-      onDragStart={onHistorySnapshot}
-      onDragEnd={(e) => {
-        onUpdate({ x: e.target.x(), y: e.target.y() } as Partial<CanvasElement>);
-      }}
-      onTransformStart={onHistorySnapshot}
+      onDragStart={onDragStart}
+      onDragMove={onDragMove}
+      onDragEnd={onDragEnd}
+      onTransformStart={onDragStart}
       onTransformEnd={() => {
         if (!ref.current) return;
         onUpdate(normalizeNode(ref.current, el));
@@ -219,6 +361,7 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
   ) {
     const transformerRef = useRef<Konva.Transformer>(null);
     const stageRef = useRef<Konva.Stage>(null);
+    const [guides, setGuides] = useState<GuideLine[]>([]);
 
     // Expose exportPng method through ref
     useImperativeHandle(ref, () => ({
@@ -226,6 +369,8 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
         const stage = stageRef.current;
         const tr = transformerRef.current;
         if (!stage) return;
+
+        setGuides([]); // Clear guidelines before export
 
         // Hide transformer temporarily so outline doesn't show in PNG
         const prevNodes = tr?.nodes() ?? [];
@@ -294,6 +439,39 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
       [activeTool, onAdd, onSelect]
     );
 
+    const handleDragStart = useCallback(() => {
+      onHistorySnapshot();
+      setGuides([]);
+    }, [onHistorySnapshot]);
+
+    const handleDragMove = useCallback(
+      (e: Konva.KonvaEventObject<DragEvent>, elId: string) => {
+        const node = e.target;
+        const stops = getLineGuideStops(elId, elements, artboard);
+        const bounds = getObjectSnappingEdges(node);
+        const { guides: newGuides, minV, minH } = getGuides(stops, bounds, artboard);
+
+        // Snap node coordinates if guide exists
+        if (minV) {
+          node.x(minV.lineGuide + minV.offset);
+        }
+        if (minH) {
+          node.y(minH.lineGuide + minH.offset);
+        }
+
+        setGuides(newGuides);
+      },
+      [elements, artboard]
+    );
+
+    const handleDragEnd = useCallback(
+      (e: Konva.KonvaEventObject<DragEvent>, el: CanvasElement) => {
+        setGuides([]);
+        onUpdate(el.id, { x: e.target.x(), y: e.target.y() } as Partial<CanvasElement>);
+      },
+      [onUpdate]
+    );
+
     const selectedEl = elements.find((el) => el.id === selectedId) ?? null;
 
     // Transformer config per element type
@@ -347,7 +525,9 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                       el={el as RectElement}
                       onSelect={() => onSelect(el.id)}
                       onUpdate={handleUpdate}
-                      onHistorySnapshot={onHistorySnapshot}
+                      onDragStart={handleDragStart}
+                      onDragMove={(e) => handleDragMove(e, el.id)}
+                      onDragEnd={(e) => handleDragEnd(e, el)}
                     />
                   );
                 }
@@ -358,7 +538,9 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                       el={el as CircleElement}
                       onSelect={() => onSelect(el.id)}
                       onUpdate={handleUpdate}
-                      onHistorySnapshot={onHistorySnapshot}
+                      onDragStart={handleDragStart}
+                      onDragMove={(e) => handleDragMove(e, el.id)}
+                      onDragEnd={(e) => handleDragEnd(e, el)}
                     />
                   );
                 }
@@ -369,12 +551,27 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                       el={el as TextElement}
                       onSelect={() => onSelect(el.id)}
                       onUpdate={handleUpdate}
-                      onHistorySnapshot={onHistorySnapshot}
+                      onDragStart={handleDragStart}
+                      onDragMove={(e) => handleDragMove(e, el.id)}
+                      onDragEnd={(e) => handleDragEnd(e, el)}
                     />
                   );
                 }
                 return null;
               })}
+
+              {/* Dynamic Smart Alignment Guidelines (Snapping Lines) */}
+              {guides.map((g, idx) => (
+                <Line
+                  key={`guide-${idx}`}
+                  points={g.points}
+                  stroke="#ec4899"
+                  strokeWidth={1}
+                  dash={[4, 3]}
+                  listening={false}
+                  perfectDrawEnabled={false}
+                />
+              ))}
 
               {/* Transformer */}
               <Transformer
