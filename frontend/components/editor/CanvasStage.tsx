@@ -213,6 +213,7 @@ function RectShape({
   el,
   onSelect,
   onUpdate,
+  onPointerDown,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -220,7 +221,8 @@ function RectShape({
   el: RectElement;
   onSelect: () => void;
   onUpdate: (patch: Partial<CanvasElement>) => void;
-  onDragStart: () => void;
+  onPointerDown: (node?: Konva.Node) => void;
+  onDragStart: (node?: Konva.Node) => void;
   onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
 }) {
@@ -240,12 +242,14 @@ function RectShape({
       fill={el.fill}
       opacity={el.opacity}
       draggable={!el.locked}
+      onMouseDown={() => onPointerDown(ref.current ?? undefined)}
+      onTouchStart={() => onPointerDown(ref.current ?? undefined)}
       onClick={onSelect}
       onTap={onSelect}
-      onDragStart={onDragStart}
+      onDragStart={() => onDragStart(ref.current ?? undefined)}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
-      onTransformStart={onDragStart}
+      onTransformStart={() => onDragStart(ref.current ?? undefined)}
       onTransformEnd={() => {
         if (!ref.current) return;
         onUpdate(normalizeNode(ref.current, el));
@@ -258,6 +262,7 @@ function CircleShape({
   el,
   onSelect,
   onUpdate,
+  onPointerDown,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -265,7 +270,8 @@ function CircleShape({
   el: CircleElement;
   onSelect: () => void;
   onUpdate: (patch: Partial<CanvasElement>) => void;
-  onDragStart: () => void;
+  onPointerDown: (node?: Konva.Node) => void;
+  onDragStart: (node?: Konva.Node) => void;
   onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
 }) {
@@ -284,12 +290,14 @@ function CircleShape({
       fill={el.fill}
       opacity={el.opacity}
       draggable={!el.locked}
+      onMouseDown={() => onPointerDown(ref.current ?? undefined)}
+      onTouchStart={() => onPointerDown(ref.current ?? undefined)}
       onClick={onSelect}
       onTap={onSelect}
-      onDragStart={onDragStart}
+      onDragStart={() => onDragStart(ref.current ?? undefined)}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
-      onTransformStart={onDragStart}
+      onTransformStart={() => onDragStart(ref.current ?? undefined)}
       onTransformEnd={() => {
         if (!ref.current) return;
         onUpdate(normalizeNode(ref.current, el));
@@ -302,6 +310,7 @@ function TextShape({
   el,
   onSelect,
   onUpdate,
+  onPointerDown,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -309,7 +318,8 @@ function TextShape({
   el: TextElement;
   onSelect: () => void;
   onUpdate: (patch: Partial<CanvasElement>) => void;
-  onDragStart: () => void;
+  onPointerDown: (node?: Konva.Node) => void;
+  onDragStart: (node?: Konva.Node) => void;
   onDragMove: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
 }) {
@@ -331,12 +341,14 @@ function TextShape({
       opacity={el.opacity}
       fontFamily="Inter, system-ui, sans-serif"
       draggable={!el.locked}
+      onMouseDown={() => onPointerDown(ref.current ?? undefined)}
+      onTouchStart={() => onPointerDown(ref.current ?? undefined)}
       onClick={onSelect}
       onTap={onSelect}
-      onDragStart={onDragStart}
+      onDragStart={() => onDragStart(ref.current ?? undefined)}
       onDragMove={onDragMove}
       onDragEnd={onDragEnd}
-      onTransformStart={onDragStart}
+      onTransformStart={() => onDragStart(ref.current ?? undefined)}
       onTransformEnd={() => {
         if (!ref.current) return;
         onUpdate(normalizeNode(ref.current, el));
