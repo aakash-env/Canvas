@@ -11,8 +11,13 @@ export class AppError extends Error {
   }
 }
 
+interface MongoError extends Error {
+  code?: number;
+  keyPattern?: Record<string, number>;
+}
+
 export const errorHandler = (
-  err: Error,
+  err: Error | MongoError,
   _req: Request,
   res: Response,
   _next: NextFunction
@@ -22,6 +27,18 @@ export const errorHandler = (
       error: {
         message: err.message,
         statusCode: err.statusCode,
+      },
+    });
+    return;
+  }
+
+  // Mongoose duplicate key error (E11000)
+  if ('code' in err && err.code === 11000) {
+    const field = err.keyPattern ? Object.keys(err.keyPattern)[0] : 'field';
+    res.status(409).json({
+      error: {
+        message: `An account with this ${field} already exists`,
+        statusCode: 409,
       },
     });
     return;
@@ -49,10 +66,12 @@ export const errorHandler = (
     return;
   }
 
+  // Generic unhandled errors
   console.error('[Unhandled Error]', err);
+  const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
   res.status(500).json({
     error: {
-      message: 'Internal server error',
+      message,
       statusCode: 500,
     },
   });
