@@ -451,10 +451,31 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
       [activeTool, onAdd, onSelect]
     );
 
-    const handleDragStart = useCallback(() => {
-      onHistorySnapshot();
-      setGuides([]);
-    }, [onHistorySnapshot]);
+    const handlePointerDown = useCallback(
+      (elId: string, node?: Konva.Node) => {
+        if (selectedId !== elId) {
+          onSelect(elId);
+          if (node && transformerRef.current) {
+            transformerRef.current.nodes([node]);
+            transformerRef.current.getLayer()?.batchDraw();
+          }
+        }
+      },
+      [selectedId, onSelect]
+    );
+
+    const handleDragStart = useCallback(
+      (elId: string, node?: Konva.Node) => {
+        onHistorySnapshot();
+        setGuides([]);
+        onSelect(elId);
+        if (node && transformerRef.current) {
+          transformerRef.current.nodes([node]);
+          transformerRef.current.getLayer()?.batchDraw();
+        }
+      },
+      [onHistorySnapshot, onSelect]
+    );
 
     const handleDragMove = useCallback(
       (e: Konva.KonvaEventObject<DragEvent>, elId: string) => {
@@ -471,6 +492,11 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
           node.y(minH.lineGuide + minH.offset);
         }
 
+        // Keep transformer lines, corner anchors and rotation handle strictly synced with moving shape
+        if (transformerRef.current) {
+          transformerRef.current.update();
+        }
+
         setGuides(newGuides);
       },
       [elements, artboard]
@@ -479,18 +505,23 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
     const handleDragEnd = useCallback(
       (e: Konva.KonvaEventObject<DragEvent>, el: CanvasElement) => {
         setGuides([]);
-        onUpdate(el.id, { x: e.target.x(), y: e.target.y() } as Partial<CanvasElement>);
+        const node = e.target;
+        onUpdate(el.id, { x: node.x(), y: node.y() } as Partial<CanvasElement>);
+        if (transformerRef.current) {
+          transformerRef.current.update();
+          transformerRef.current.getLayer()?.batchDraw();
+        }
       },
       [onUpdate]
     );
 
     const selectedEl = elements.find((el) => el.id === selectedId) ?? null;
 
-    // Transformer config per element type
-    const trConfig =
-      selectedEl?.type === "circle"
-        ? { keepRatio: true, enabledAnchors: ["top-left", "top-right", "bottom-left", "bottom-right"] as string[] }
-        : { keepRatio: false };
+    // Transformer config per element type - 4 corner anchors + rotation anchor matching user screenshot
+    const trConfig = {
+      enabledAnchors: ["top-left", "top-right", "bottom-left", "bottom-right"] as string[],
+      keepRatio: selectedEl?.type === "circle",
+    };
 
     return (
       <div
@@ -537,7 +568,8 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                       el={el as RectElement}
                       onSelect={() => onSelect(el.id)}
                       onUpdate={handleUpdate}
-                      onDragStart={handleDragStart}
+                      onPointerDown={(node) => handlePointerDown(el.id, node)}
+                      onDragStart={(node) => handleDragStart(el.id, node)}
                       onDragMove={(e) => handleDragMove(e, el.id)}
                       onDragEnd={(e) => handleDragEnd(e, el)}
                     />
@@ -550,7 +582,8 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                       el={el as CircleElement}
                       onSelect={() => onSelect(el.id)}
                       onUpdate={handleUpdate}
-                      onDragStart={handleDragStart}
+                      onPointerDown={(node) => handlePointerDown(el.id, node)}
+                      onDragStart={(node) => handleDragStart(el.id, node)}
                       onDragMove={(e) => handleDragMove(e, el.id)}
                       onDragEnd={(e) => handleDragEnd(e, el)}
                     />
@@ -563,7 +596,8 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                       el={el as TextElement}
                       onSelect={() => onSelect(el.id)}
                       onUpdate={handleUpdate}
-                      onDragStart={handleDragStart}
+                      onPointerDown={(node) => handlePointerDown(el.id, node)}
+                      onDragStart={(node) => handleDragStart(el.id, node)}
                       onDragMove={(e) => handleDragMove(e, el.id)}
                       onDragEnd={(e) => handleDragEnd(e, el)}
                     />
@@ -585,7 +619,7 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                 />
               ))}
 
-              {/* Transformer */}
+              {/* Transformer: crisp bounding box outline with 4 rounded corner anchors and top rotation anchor */}
               <Transformer
                 ref={transformerRef}
                 {...trConfig}
@@ -595,15 +629,20 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                   }
                   return newBox;
                 }}
-                anchorStyleFunc={(anchor) => {
-                  anchor.cornerRadius(3);
-                  anchor.fill("#6366f1");
-                  anchor.stroke("#4f46e5");
-                  anchor.strokeWidth(1);
-                }}
+                anchorSize={9}
+                anchorCornerRadius={2.5}
+                anchorFill="#ffffff"
+                anchorStroke="#6366f1"
+                anchorStrokeWidth={1.5}
                 borderStroke="#6366f1"
                 borderStrokeWidth={1.5}
-                rotateAnchorOffset={20}
+                rotateAnchorOffset={24}
+                anchorStyleFunc={(anchor) => {
+                  anchor.cornerRadius(2.5);
+                  anchor.fill("#ffffff");
+                  anchor.stroke("#6366f1");
+                  anchor.strokeWidth(1.5);
+                }}
               />
             </Layer>
           </Stage>
