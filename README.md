@@ -14,6 +14,7 @@ A production-quality design canvas editor built with **Next.js 16**, **React 19*
   - [1. Backend Setup](#1-backend-setup)
   - [2. Frontend Setup](#2-frontend-setup)
 - [MongoDB Setup](#mongodb-setup)
+- [Deploying to Vercel (Frontend & Backend)](#deploying-to-vercel-frontend--backend)
 - [API Endpoints Reference](#api-endpoints-reference)
 - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Architecture & Design Decisions](#architecture--design-decisions)
@@ -188,6 +189,42 @@ npm start
    MONGODB_URI=mongodb+srv://<username>:<password>@clusterproject.pghqmr8.mongodb.net/mini-design-canvas?retryWrites=true&w=majority
    ```
 > **Windows DNS Note**: Node.js c-ares DNS resolver can encounter `querySrv ECONNREFUSED` on Windows when resolving `mongodb+srv://` hostnames. The backend automatically handles this in `backend/src/db.ts` by configuring reliable public DNS resolvers (`8.8.8.8`, `1.1.1.1`).
+
+---
+
+## Deploying to Vercel (Frontend & Backend)
+
+Both the frontend and backend are configured for 1-click deployment on [Vercel](https://vercel.com). Deploy them as two projects linked to your repository.
+
+### 1. Deploy the Backend (Express Serverless API)
+
+1. Go to your [Vercel Dashboard](https://vercel.com/dashboard) and click **Add New... > Project**.
+2. Import your GitHub repository (`Canvas`).
+3. In the project setup settings:
+   - **Project Name**: `canvas-backend-api` (or your preferred name).
+   - **Framework Preset**: Select **Other**.
+   - **Root Directory**: Click Edit and select `backend`.
+4. Expand **Environment Variables** and add:
+   - `MONGODB_URI`: Your MongoDB Atlas connection URI (`mongodb+srv://...`).
+   - `JWT_SECRET`: A secure random secret string (e.g. `openssl rand -base64 32`).
+   - `JWT_EXPIRES_IN`: `7d`
+   - `CORS_ORIGINS`: `*` (or your frontend Vercel domain once deployed).
+   - `NODE_ENV`: `production`
+5. Click **Deploy**. Vercel will build using `backend/vercel.json` and deploy your Express API as serverless functions with connection caching. Note your backend URL (e.g., `https://canvas-backend-api.vercel.app`).
+
+### 2. Deploy the Frontend (Next.js App Router)
+
+1. In your Vercel Dashboard, click **Add New... > Project**.
+2. Import the same repository (`Canvas`).
+3. In the project setup settings:
+   - **Project Name**: `canvas-editor` (or your preferred name).
+   - **Framework Preset**: **Next.js** (detected automatically).
+   - **Root Directory**: Click Edit and select `frontend`.
+4. Expand **Environment Variables** and add:
+   - `NEXT_PUBLIC_API_URL`: The deployed backend URL from Step 1 (e.g., `https://canvas-backend-api.vercel.app`).
+5. Click **Deploy**.
+
+> **Note on CORS**: After both are deployed, you can update `CORS_ORIGINS` in your Backend Vercel project settings to match your exact Frontend Vercel URL (e.g., `https://canvas-editor.vercel.app`), then redeploy the backend for strict origin isolation.
 
 ---
 
