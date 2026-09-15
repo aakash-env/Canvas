@@ -7,15 +7,25 @@ import type {
 } from "@/types/canvas";
 
 export function getBaseUrl(): string {
-  // If explicitly configured in environment variables
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
-  }
-  // Smart fallback: When running in browser on Vercel, route to deployed backend
-  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
+  const envUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "");
+
+  // When running in a browser on any production / cloud domain (e.g. Vercel)
+  if (
+    typeof window !== "undefined" &&
+    window.location.hostname !== "localhost" &&
+    window.location.hostname !== "127.0.0.1"
+  ) {
+    // If an external HTTPS URL is explicitly provided, use it; otherwise use deployed backend
+    if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+      return envUrl;
+    }
     return "https://canvas-backend-gules.vercel.app";
   }
-  // Local development fallback
+
+  // When running locally on developer machine
+  if (envUrl) {
+    return envUrl;
+  }
   return "http://localhost:4000";
 }
 
