@@ -1,9 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Silence the webpack-vs-turbopack warning; Konva is loaded client-side
-  // via dynamic import with ssr:false so no special bundler config is needed.
+  // Turbopack configuration
   turbopack: {},
+  // Hide x-powered-by header for production security
+  poweredByHeader: false,
+  // Enable HTTP response compression
+  compress: true,
+  // Strict mode for detecting side effects
+  reactStrictMode: true,
 };
 
 export default nextConfig;
