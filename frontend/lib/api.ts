@@ -6,8 +6,18 @@ import type {
   User,
 } from "@/types/canvas";
 
-const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-const BASE_URL = RAW_BASE_URL.replace(/\/+$/, "");
+export function getBaseUrl(): string {
+  // If explicitly configured in environment variables
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
+  }
+  // Smart fallback: When running in browser on Vercel, route to deployed backend
+  if (typeof window !== "undefined" && window.location.hostname.endsWith(".vercel.app")) {
+    return "https://canvas-backend-gules.vercel.app";
+  }
+  // Local development fallback
+  return "http://localhost:4000";
+}
 
 interface ApiResponse<T> {
   data: T;
@@ -48,10 +58,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers,
-  });
+  const baseUrl = getBaseUrl();
+  let res: Response;
+  try {
+    res = await fetch(`${baseUrl}${path}`, {
+      ...init,
+      headers,
+    });
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    console.error(`[API] Connection error fetching ${baseUrl}${path}:`, err);
+    if (errorMsg === "Failed to fetch" || errorMsg.includes("NetworkError")) {
+      throw new Error(`Unable to reach backend at ${baseUrl}. Please verify your network connection.`);
+    }
+    throw new Error(errorMsg || "Network request failed");
+  }
+
   if (!res.ok) {
     let message = `HTTP ${res.status}`;
     try {
