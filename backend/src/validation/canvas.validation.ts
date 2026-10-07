@@ -50,6 +50,7 @@ export const updateCanvasSchema = z.object({
   name: z.string().min(1).max(200).trim().optional(),
   artboard: artboardSchema.optional(),
   elements: z.array(canvasElementSchema).optional(),
+  version: z.number().int().positive().optional(),
 }).refine(
   (data) => Object.keys(data).length > 0,
   { message: 'At least one field must be provided for update' }

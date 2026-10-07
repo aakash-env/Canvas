@@ -6,6 +6,8 @@ export interface ICanvas extends Document {
   name: string;
   artboard: ArtboardDimensions;
   elements: CanvasElement[];
+  version: number;
+  deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -51,6 +53,8 @@ const canvasSchema = new Schema<ICanvas>(
     name: { type: String, required: true, trim: true, maxlength: 200 },
     artboard: { type: artboardSchema, required: true, default: { width: 1200, height: 800 } },
     elements: { type: [elementSchema], default: [] },
+    version: { type: Number, default: 1 },
+    deletedAt: { type: Date, default: null, index: true },
   },
   {
     timestamps: true,
@@ -58,7 +62,7 @@ const canvasSchema = new Schema<ICanvas>(
   }
 );
 
-canvasSchema.index({ userId: 1, updatedAt: -1 });
+canvasSchema.index({ userId: 1, deletedAt: 1, updatedAt: -1 });
 canvasSchema.index({ createdAt: -1 });
 canvasSchema.index({ updatedAt: -1 });
 

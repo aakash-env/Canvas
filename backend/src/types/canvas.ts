@@ -43,6 +43,20 @@ export interface CanvasDocument {
   name: string;
   artboard: ArtboardDimensions;
   elements: CanvasElement[];
+  version: number;
+  deletedAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CanvasSummary {
+  _id: string;
+  userId: string;
+  name: string;
+  artboard: ArtboardDimensions;
+  elementCount: number;
+  version: number;
+  deletedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -58,4 +72,6 @@ export interface UpdateCanvasInput {
   name?: string;
   artboard?: ArtboardDimensions;
   elements?: CanvasElement[];
+  version?: number;
 }
+

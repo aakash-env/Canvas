@@ -133,3 +133,31 @@ export const deleteCanvas = async (
     next(err);
   }
 };
+
+export const restoreCanvas = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      next(new AppError(401, 'Authentication required'));
+      return;
+    }
+    const idParsed = mongoIdSchema.safeParse(req.params.id);
+    if (!idParsed.success) {
+      next(new AppError(400, 'Invalid canvas ID'));
+      return;
+    }
+    const restored = await canvasService.restore(idParsed.data, userId);
+    if (!restored) {
+      next(new AppError(404, 'Canvas not found or not in trash'));
+      return;
+    }
+    res.json({ data: restored });
+  } catch (err) {
+    next(err);
+  }
+};
+

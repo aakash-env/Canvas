@@ -375,23 +375,71 @@ describe('PUT /api/canvases/:id', () => {
       .send({ elements: [{ ...validRect, width: -5 }] });
     expect(res.status).toBe(400);
   });
-});
 
-describe('DELETE /api/canvases/:id', () => {
-  it('deletes a canvas', async () => {
+  it('enforces optimistic concurrency control (OCC) versioning', async () => {
     const created = await request(app)
       .post('/api/canvases')
       .set('Authorization', `Bearer ${authToken}`)
       .send(validCanvas);
     const id = created.body.data._id;
-    const res = await request(app)
+    expect(created.body.data.version).toBe(1);
+
+    // Successful update with matching version
+    const updated = await request(app)
+      .put(`/api/canvases/${id}`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ name: 'Version 2 Name', version: 1 });
+    expect(updated.status).toBe(200);
+    expect(updated.body.data.version).toBe(2);
+
+    // Conflict update with stale version
+    const conflict = await request(app)
+      .put(`/api/canvases/${id}`)
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ name: 'Stale Update', version: 1 });
+    expect(conflict.status).toBe(409);
+    expect(conflict.body.error.message).toMatch(/Conflict/);
+  });
+});
+
+describe('DELETE & RESTORE /api/canvases/:id', () => {
+  it('soft deletes a canvas and restores it', async () => {
+    const created = await request(app)
+      .post('/api/canvases')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send(validCanvas);
+    const id = created.body.data._id;
+
+    // Delete
+    const delRes = await request(app)
       .delete(`/api/canvases/${id}`)
       .set('Authorization', `Bearer ${authToken}`);
-    expect(res.status).toBe(204);
-    const get = await request(app)
+    expect(delRes.status).toBe(204);
+
+    // Get should 404
+    const getRes = await request(app)
       .get(`/api/canvases/${id}`)
       .set('Authorization', `Bearer ${authToken}`);
-    expect(get.status).toBe(404);
+    expect(getRes.status).toBe(404);
+
+    // List should not include deleted canvas
+    const listRes = await request(app)
+      .get('/api/canvases')
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(listRes.body.data).toHaveLength(0);
+
+    // Restore
+    const restoreRes = await request(app)
+      .post(`/api/canvases/${id}/restore`)
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(restoreRes.status).toBe(200);
+    expect(restoreRes.body.data.name).toBe(validCanvas.name);
+
+    // Get should now succeed
+    const getAfter = await request(app)
+      .get(`/api/canvases/${id}`)
+      .set('Authorization', `Bearer ${authToken}`);
+    expect(getAfter.status).toBe(200);
   });
 
   it('returns 404 for non-existent canvas', async () => {
