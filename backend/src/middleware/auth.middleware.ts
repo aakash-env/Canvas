@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { AppError } from './error.middleware';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'mini-design-canvas-jwt-secret-key-2024';
+import { config } from '../config/env';
 
 export interface AuthPayload {
   id: string;
@@ -30,7 +29,7 @@ export const requireAuth = (
 
   const token = authHeader.slice(7).trim();
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as AuthPayload;
+    const decoded = jwt.verify(token, config.JWT_SECRET) as AuthPayload;
     req.user = decoded;
     next();
   } catch {

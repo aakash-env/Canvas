@@ -3,8 +3,7 @@ import jwt from 'jsonwebtoken';
 import { User, IUser } from '../models/user.model';
 import { RegisterInput, LoginInput } from '../validation/auth.validation';
 import { AppError } from '../middleware/error.middleware';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'mini-design-canvas-jwt-secret-key-2024';
+import { config } from '../config/env';
 
 export interface AuthUserResponse {
   id: string;
@@ -21,8 +20,8 @@ export class AuthService {
   generateToken(user: IUser): string {
     return jwt.sign(
       { id: user._id.toString(), email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
+      config.JWT_SECRET,
+      { expiresIn: config.JWT_EXPIRES_IN as jwt.SignOptions['expiresIn'] }
     );
   }
 

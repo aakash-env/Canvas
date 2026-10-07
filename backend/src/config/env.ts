@@ -1,11 +1,19 @@
 import { z } from 'zod';
 import 'dotenv/config';
 
+const isProd = process.env.NODE_ENV === 'production';
+const devDefaultSecret = 'mini-design-canvas-jwt-secret-key-2024';
+const devDefaultMongo = 'mongodb://localhost:27017/mini-design-canvas';
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().default(4000),
-  MONGODB_URI: z.string().min(1, 'MONGODB_URI is required'),
-  JWT_SECRET: z.string().min(8, 'JWT_SECRET must be at least 8 characters'),
+  MONGODB_URI: isProd
+    ? z.string().min(1, 'MONGODB_URI is required in production')
+    : z.string().default(devDefaultMongo),
+  JWT_SECRET: isProd
+    ? z.string().min(8, 'JWT_SECRET must be at least 8 characters in production')
+    : z.string().default(devDefaultSecret),
   JWT_EXPIRES_IN: z.string().default('7d'),
   CORS_ORIGINS: z.string().default('http://localhost:3000'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().default(15 * 60 * 1000), // 15 minutes
@@ -20,7 +28,7 @@ if (!parsed.success) {
   parsed.error.errors.forEach((e) => {
     console.error(`  - ${e.path.join('.')}: ${e.message}`);
   });
-  if (process.env.NODE_ENV === 'production') {
+  if (isProd) {
     throw new Error('Invalid environment configuration in production');
   }
 }
