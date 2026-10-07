@@ -1,12 +1,28 @@
 "use client";
 import React from "react";
-import type { CanvasElement, RectElement, CircleElement, TextElement } from "@/types/canvas";
+import type {
+  CanvasElement,
+  RectElement,
+  CircleElement,
+  TextElement,
+  ArtboardDimensions,
+} from "@/types/canvas";
 
 interface PropertiesPanelProps {
   element: CanvasElement | null;
+  artboard?: ArtboardDimensions;
+  onUpdateArtboard?: (artboard: ArtboardDimensions) => void;
   onUpdate: (id: string, patch: Partial<CanvasElement>) => void;
   onDelete: (id: string) => void;
 }
+
+const ARTBOARD_PRESETS = [
+  { label: "Default", width: 1200, height: 800 },
+  { label: "Square (1:1)", width: 1080, height: 1080 },
+  { label: "Full HD (16:9)", width: 1920, height: 1080 },
+  { label: "Twitter Banner", width: 1500, height: 500 },
+  { label: "Dribbble Shot", width: 1600, height: 1200 },
+];
 
 function NumInput({
   label,
@@ -89,30 +105,84 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function PropertiesPanel({ element, onUpdate, onDelete }: PropertiesPanelProps) {
+export function PropertiesPanel({
+  element,
+  artboard,
+  onUpdateArtboard,
+  onUpdate,
+  onDelete,
+}: PropertiesPanelProps) {
   if (!element) {
     return (
-      <aside className="w-56 bg-white border-l border-slate-200 flex flex-col shrink-0">
+      <aside className="w-56 bg-white border-l border-slate-200 flex flex-col shrink-0 h-full overflow-y-auto">
         <div className="px-4 py-3 border-b border-slate-100">
-          <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-            Properties
+          <h2 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+            Artboard
           </h2>
+          <p className="text-[10px] text-slate-400 mt-0.5">Canvas Dimensions</p>
         </div>
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 text-center">
-          <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <rect x="2" y="5" width="6" height="4" rx="1" stroke="#94a3b8" strokeWidth="1.4" />
-              <circle cx="13" cy="7" r="3" stroke="#94a3b8" strokeWidth="1.4" />
-              <path d="M2 12h14M2 15h9" stroke="#94a3b8" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
+
+        {artboard && onUpdateArtboard ? (
+          <div className="flex flex-col gap-4 px-4 py-3">
+            <Section title="Dimensions">
+              <div className="grid grid-cols-2 gap-2">
+                <NumInput
+                  label="Width"
+                  value={artboard.width}
+                  min={100}
+                  max={5000}
+                  step={10}
+                  onChange={(w) => onUpdateArtboard({ ...artboard, width: Math.max(100, Math.min(5000, w)) })}
+                />
+                <NumInput
+                  label="Height"
+                  value={artboard.height}
+                  min={100}
+                  max={5000}
+                  step={10}
+                  onChange={(h) => onUpdateArtboard({ ...artboard, height: Math.max(100, Math.min(5000, h)) })}
+                />
+              </div>
+            </Section>
+
+            <Section title="Presets">
+              <div className="flex flex-col gap-1.5">
+                {ARTBOARD_PRESETS.map((p) => {
+                  const isActive = artboard.width === p.width && artboard.height === p.height;
+                  return (
+                    <button
+                      key={p.label}
+                      onClick={() => onUpdateArtboard({ width: p.width, height: p.height })}
+                      className={`flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors text-left ${
+                        isActive
+                          ? "bg-indigo-50 text-indigo-700 font-semibold ring-1 ring-indigo-200"
+                          : "bg-slate-50 hover:bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      <span>{p.label}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        {p.width}×{p.height}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </Section>
+
+            <div className="pt-2 border-t border-slate-100 text-center">
+              <p className="text-[11px] text-slate-400">
+                Click any canvas shape to inspect and adjust its properties
+              </p>
+            </div>
           </div>
-          <div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 px-4 text-center">
             <p className="text-xs font-medium text-slate-500">No element selected</p>
             <p className="text-[11px] text-slate-400 mt-0.5">
               Click an element or use the toolbar to add one
             </p>
           </div>
-        </div>
+        )}
       </aside>
     );
   }

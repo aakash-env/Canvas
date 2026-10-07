@@ -138,6 +138,7 @@ export const api = {
       name?: string;
       artboard?: ArtboardDimensions;
       elements?: CanvasElement[];
+      version?: number;
     }
   ): Promise<CanvasData> =>
     request<CanvasData>(`/api/canvases/${id}`, {
@@ -147,4 +148,7 @@ export const api = {
 
   deleteCanvas: (id: string): Promise<void> =>
     request<void>(`/api/canvases/${id}`, { method: "DELETE" }),
+
+  restoreCanvas: (id: string): Promise<CanvasData> =>
+    request<CanvasData>(`/api/canvases/${id}/restore`, { method: "POST" }),
 };

@@ -43,9 +43,17 @@ export interface CanvasData {
   name: string;
   artboard: ArtboardDimensions;
   elements: CanvasElement[];
+  version?: number;
+  deletedAt?: string | null;
+  elementCount?: number;
   createdAt: string;
   updatedAt: string;
 }
+
+export type CanvasSummary = Omit<CanvasData, "elements"> & {
+  elements?: CanvasElement[];
+  elementCount?: number;
+};
 
 export interface User {
   id: string;

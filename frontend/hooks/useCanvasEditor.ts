@@ -31,6 +31,7 @@ export interface EditorState {
   activeTool: ToolType;
   saveStatus: SaveStatus;
   isDirty: boolean;
+  version: number | null;
   canUndo: boolean;
   canRedo: boolean;
 }
@@ -45,6 +46,7 @@ export function useCanvasEditor() {
     activeTool: "select",
     saveStatus: "idle",
     isDirty: false,
+    version: null,
     canUndo: false,
     canRedo: false,
   });
@@ -195,6 +197,11 @@ export function useCanvasEditor() {
     setState((s) => ({ ...s, canvasName: name, isDirty: true }));
   }, []);
 
+  const setArtboard = useCallback((artboard: ArtboardDimensions) => {
+    snapshot();
+    setState((s) => ({ ...s, artboard, isDirty: true }));
+  }, [snapshot]);
+
   const loadCanvas = useCallback((canvas: CanvasData) => {
     clearHistory();
     setState({
@@ -202,6 +209,7 @@ export function useCanvasEditor() {
       canvasName: canvas.name,
       artboard: canvas.artboard,
       elements: canvas.elements,
+      version: canvas.version ?? 1,
       selectedId: null,
       activeTool: "select",
       saveStatus: "idle",
@@ -227,6 +235,7 @@ export function useCanvasEditor() {
         canvasName: "Untitled Canvas",
         artboard: DEFAULT_ARTBOARD,
         elements: [],
+        version: null,
         selectedId: null,
         activeTool: "select",
         saveStatus: "idle",
@@ -253,6 +262,7 @@ export function useCanvasEditor() {
           name: snapshotData.canvasName,
           artboard: snapshotData.artboard,
           elements: snapshotData.elements,
+          version: snapshotData.version ?? undefined,
         });
       } else {
         saved = await api.createCanvas({
@@ -265,6 +275,7 @@ export function useCanvasEditor() {
       setState((s) => ({
         ...s,
         canvasId: saved._id,
+        version: saved.version ?? (s.version ? s.version + 1 : 1),
         saveStatus: "saved",
         isDirty: false,
       }));
@@ -413,6 +424,7 @@ export function useCanvasEditor() {
     deleteElement,
     setElements,
     setCanvasName,
+    setArtboard,
     loadCanvas,
     newCanvas,
     saveCanvas,

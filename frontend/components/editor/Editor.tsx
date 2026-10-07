@@ -33,6 +33,7 @@ export function Editor() {
     updateElement,
     deleteElement,
     setCanvasName,
+    setArtboard,
     loadCanvas,
     newCanvas,
     saveCanvas,
@@ -229,6 +230,8 @@ export function Editor() {
           <div className="flex-1 overflow-y-auto">
             <PropertiesPanel
               element={selectedElement}
+              artboard={state.artboard}
+              onUpdateArtboard={setArtboard}
               onUpdate={updateElement}
               onDelete={deleteElement}
             />

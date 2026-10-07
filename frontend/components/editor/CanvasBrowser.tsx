@@ -121,7 +121,7 @@ export function CanvasBrowser({ currentId, onLoad, onClose }: CanvasBrowserProps
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800 truncate">{c.name}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
-                      {c.elements.length} element{c.elements.length !== 1 ? "s" : ""} ·{" "}
+                      {(c.elementCount ?? c.elements?.length ?? 0)} element{(c.elementCount ?? c.elements?.length ?? 0) !== 1 ? "s" : ""} ·{" "}
                       {c.artboard.width}×{c.artboard.height} ·{" "}
                       {new Date(c.updatedAt).toLocaleDateString()}
                     </p>
