@@ -544,8 +544,8 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
             onTap={(e) => handleStageClick(e as unknown as Konva.KonvaEventObject<MouseEvent | TouchEvent>)}
             style={{ cursor: activeTool !== "select" ? "crosshair" : "default" }}
           >
-            <Layer>
-              {/* Artboard background */}
+            {/* Layer 1: Artboard background (drawn once, independent canvas) */}
+            <Layer id="background-layer">
               <Rect
                 name="artboard-bg"
                 x={0}
@@ -555,8 +555,10 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                 fill="white"
                 listening={true}
               />
+            </Layer>
 
-              {/* Elements */}
+            {/* Layer 2: Main Design Content (all shapes) */}
+            <Layer id="content-layer">
               {elements.map((el) => {
                 const handleUpdate = (patch: Partial<CanvasElement>) =>
                   onUpdate(el.id, patch);
@@ -605,8 +607,10 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                 }
                 return null;
               })}
+            </Layer>
 
-              {/* Dynamic Smart Alignment Guidelines (Snapping Lines) */}
+            {/* Layer 3: Dynamic Smart Alignment Guidelines (repaints at 60 FPS without touching shapes) */}
+            <Layer id="overlay-layer" listening={false}>
               {guides.map((g, idx) => (
                 <Line
                   key={`guide-${idx}`}
@@ -618,8 +622,10 @@ export const CanvasStage = forwardRef<CanvasStageHandle, CanvasStageProps>(
                   perfectDrawEnabled={false}
                 />
               ))}
+            </Layer>
 
-              {/* Transformer: crisp bounding box outline with 4 rounded corner anchors and top rotation anchor */}
+            {/* Layer 4: Transformer Controls & Bounding Box */}
+            <Layer id="controls-layer">
               <Transformer
                 ref={transformerRef}
                 {...trConfig}
