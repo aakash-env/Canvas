@@ -10,12 +10,19 @@ export interface BaseElement {
   opacity: number;
   visible?: boolean;
   locked?: boolean;
+  stroke?: string;
+  strokeWidth?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
 }
 
 export interface RectElement extends BaseElement {
   type: 'rect';
   width: number;
   height: number;
+  cornerRadius?: number;
 }
 
 export interface CircleElement extends BaseElement {

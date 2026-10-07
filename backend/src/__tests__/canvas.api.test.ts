@@ -155,6 +155,31 @@ describe('POST /api/canvases', () => {
     expect(res.body.data.elements).toHaveLength(3);
   });
 
+  it('creates a canvas with stroke, shadow, and cornerRadius styling', async () => {
+    const styledRect = {
+      ...validRect,
+      stroke: '#4f46e5',
+      strokeWidth: 3,
+      shadowColor: '#000000',
+      shadowBlur: 15,
+      shadowOffsetX: 2,
+      shadowOffsetY: 8,
+      cornerRadius: 12,
+    };
+    const res = await request(app)
+      .post('/api/canvases')
+      .set('Authorization', `Bearer ${authToken}`)
+      .send({ ...validCanvas, elements: [styledRect] });
+    expect(res.status).toBe(201);
+    expect(res.body.data.elements[0].stroke).toBe('#4f46e5');
+    expect(res.body.data.elements[0].strokeWidth).toBe(3);
+    expect(res.body.data.elements[0].shadowColor).toBe('#000000');
+    expect(res.body.data.elements[0].shadowBlur).toBe(15);
+    expect(res.body.data.elements[0].shadowOffsetX).toBe(2);
+    expect(res.body.data.elements[0].shadowOffsetY).toBe(8);
+    expect(res.body.data.elements[0].cornerRadius).toBe(12);
+  });
+
   it('uses default artboard when not provided', async () => {
     const res = await request(app)
       .post('/api/canvases')

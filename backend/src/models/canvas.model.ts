@@ -21,6 +21,12 @@ const baseElementFields = {
   opacity: { type: Number, default: 1, min: 0, max: 1 },
   visible: { type: Boolean, default: true },
   locked: { type: Boolean, default: false },
+  stroke: { type: String },
+  strokeWidth: { type: Number, default: 0 },
+  shadowColor: { type: String },
+  shadowBlur: { type: Number, default: 0 },
+  shadowOffsetX: { type: Number, default: 0 },
+  shadowOffsetY: { type: Number, default: 0 },
 };
 
 const elementSchema = new Schema(
@@ -30,6 +36,7 @@ const elementSchema = new Schema(
     // rect fields
     width: { type: Number },
     height: { type: Number },
+    cornerRadius: { type: Number, default: 0 },
     // circle fields
     radius: { type: Number },
     // text fields
