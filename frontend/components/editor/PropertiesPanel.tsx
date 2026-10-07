@@ -18,9 +18,12 @@ interface PropertiesPanelProps {
 
 const ARTBOARD_PRESETS = [
   { label: "Default", width: 1200, height: 800 },
-  { label: "Square (1:1)", width: 1080, height: 1080 },
-  { label: "Full HD (16:9)", width: 1920, height: 1080 },
+  { label: "Instagram Post", width: 1080, height: 1080 },
+  { label: "Instagram Story", width: 1080, height: 1920 },
   { label: "Twitter Banner", width: 1500, height: 500 },
+  { label: "YouTube Thumb", width: 1280, height: 720 },
+  { label: "iPhone 16 Pro", width: 393, height: 852 },
+  { label: "Full HD (16:9)", width: 1920, height: 1080 },
   { label: "Dribbble Shot", width: 1600, height: 1200 },
 ];
 
@@ -70,11 +73,42 @@ function ColorInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const hasEyeDropper = typeof window !== "undefined" && "EyeDropper" in window;
+
+  const pickColor = async () => {
+    if (hasEyeDropper) {
+      try {
+        const eyeDropper = new (window as any).EyeDropper();
+        const result = await eyeDropper.open();
+        if (result?.sRGBHex) {
+          onChange(result.sRGBHex);
+        }
+      } catch {
+        // user canceled
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
-        {label}
-      </label>
+      <div className="flex items-center justify-between">
+        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+          {label}
+        </label>
+        {hasEyeDropper && (
+          <button
+            type="button"
+            onClick={pickColor}
+            title="Sample color from screen"
+            className="text-[10px] text-slate-400 hover:text-indigo-600 transition-colors flex items-center gap-1 font-medium"
+          >
+            <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+              <path d="M13.3 2.7a1.5 1.5 0 0 0-2.1 0l-1.5 1.5 2.1 2.1 1.5-1.5a1.5 1.5 0 0 0 0-2.1zM8.3 5.7L2.5 11.5v2h2l5.8-5.8-2-2z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            Pick
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         <input
           type="color"
@@ -227,7 +261,108 @@ export function PropertiesPanel({
         </div>
       </div>
 
-      <div className="flex flex-col gap-5 px-4 py-4">
+      <div className="flex flex-col gap-4 px-4 py-3">
+        {/* Alignment HUD */}
+        {artboard && !element.locked && (
+          <div className="flex items-center justify-between p-1 bg-slate-50 border border-slate-200/80 rounded-lg">
+            <button
+              type="button"
+              onClick={() => {
+                if (element.type === "circle") update({ x: (element as CircleElement).radius } as Partial<CanvasElement>);
+                else update({ x: 0 } as Partial<CanvasElement>);
+              }}
+              title="Align Left"
+              className="p-1 hover:bg-white hover:text-indigo-600 rounded text-slate-500 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                <line x1="2" y1="2" x2="2" y2="14" strokeWidth="2" strokeLinecap="round" />
+                <rect x="5" y="4" width="7" height="3" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+                <rect x="5" y="9" width="9" height="3" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (element.type === "rect") update({ x: Math.round((artboard.width - (element as RectElement).width) / 2) } as Partial<CanvasElement>);
+                else if (element.type === "circle") update({ x: Math.round(artboard.width / 2) } as Partial<CanvasElement>);
+                else if (element.type === "text") update({ x: Math.round((artboard.width - (element as TextElement).width) / 2) } as Partial<CanvasElement>);
+              }}
+              title="Align Horizontal Center"
+              className="p-1 hover:bg-white hover:text-indigo-600 rounded text-slate-500 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                <line x1="8" y1="2" x2="8" y2="14" strokeWidth="1.5" strokeDasharray="2 1" />
+                <rect x="4" y="4" width="8" height="3" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+                <rect x="3" y="9" width="10" height="3" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (element.type === "rect") update({ x: Math.round(artboard.width - (element as RectElement).width) } as Partial<CanvasElement>);
+                else if (element.type === "circle") update({ x: Math.round(artboard.width - (element as CircleElement).radius) } as Partial<CanvasElement>);
+                else if (element.type === "text") update({ x: Math.round(artboard.width - (element as TextElement).width) } as Partial<CanvasElement>);
+              }}
+              title="Align Right"
+              className="p-1 hover:bg-white hover:text-indigo-600 rounded text-slate-500 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                <line x1="14" y1="2" x2="14" y2="14" strokeWidth="2" strokeLinecap="round" />
+                <rect x="4" y="4" width="7" height="3" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+                <rect x="2" y="9" width="9" height="3" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+              </svg>
+            </button>
+            <div className="w-[1px] h-3.5 bg-slate-200" />
+            <button
+              type="button"
+              onClick={() => {
+                if (element.type === "circle") update({ y: (element as CircleElement).radius } as Partial<CanvasElement>);
+                else update({ y: 0 } as Partial<CanvasElement>);
+              }}
+              title="Align Top"
+              className="p-1 hover:bg-white hover:text-indigo-600 rounded text-slate-500 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                <line x1="2" y1="2" x2="14" y2="2" strokeWidth="2" strokeLinecap="round" />
+                <rect x="4" y="5" width="3" height="7" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+                <rect x="9" y="5" width="3" height="9" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (element.type === "rect") update({ y: Math.round((artboard.height - (element as RectElement).height) / 2) } as Partial<CanvasElement>);
+                else if (element.type === "circle") update({ y: Math.round(artboard.height / 2) } as Partial<CanvasElement>);
+                else if (element.type === "text") update({ y: Math.round((artboard.height - (element as TextElement).fontSize * 1.2) / 2) } as Partial<CanvasElement>);
+              }}
+              title="Align Vertical Center"
+              className="p-1 hover:bg-white hover:text-indigo-600 rounded text-slate-500 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                <line x1="2" y1="8" x2="14" y2="8" strokeWidth="1.5" strokeDasharray="2 1" />
+                <rect x="4" y="4" width="3" height="8" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+                <rect x="9" y="3" width="3" height="10" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (element.type === "rect") update({ y: Math.round(artboard.height - (element as RectElement).height) } as Partial<CanvasElement>);
+                else if (element.type === "circle") update({ y: Math.round(artboard.height - (element as CircleElement).radius) } as Partial<CanvasElement>);
+                else if (element.type === "text") update({ y: Math.round(artboard.height - (element as TextElement).fontSize * 1.2) } as Partial<CanvasElement>);
+              }}
+              title="Align Bottom"
+              className="p-1 hover:bg-white hover:text-indigo-600 rounded text-slate-500 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                <line x1="2" y1="14" x2="14" y2="14" strokeWidth="2" strokeLinecap="round" />
+                <rect x="4" y="4" width="3" height="7" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+                <rect x="9" y="2" width="3" height="9" rx="0.5" fill="currentColor" opacity="0.3" stroke="none" />
+              </svg>
+            </button>
+          </div>
+        )}
+
         {/* Position */}
         <Section title="Position">
           <div className="grid grid-cols-2 gap-2">
@@ -246,20 +381,29 @@ export function PropertiesPanel({
         {/* Size */}
         <Section title="Size">
           {element.type === "rect" && (
-            <div className="grid grid-cols-2 gap-2">
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <NumInput
+                  label="W"
+                  value={(element as RectElement).width}
+                  min={1}
+                  onChange={(v) => update({ width: Math.max(1, v) } as Partial<CanvasElement>)}
+                />
+                <NumInput
+                  label="H"
+                  value={(element as RectElement).height}
+                  min={1}
+                  onChange={(v) => update({ height: Math.max(1, v) } as Partial<CanvasElement>)}
+                />
+              </div>
               <NumInput
-                label="W"
-                value={(element as RectElement).width}
-                min={1}
-                onChange={(v) => update({ width: Math.max(1, v) } as Partial<CanvasElement>)}
+                label="Corner Radius"
+                value={(element as RectElement).cornerRadius ?? 0}
+                min={0}
+                max={200}
+                onChange={(v) => update({ cornerRadius: Math.max(0, v) } as Partial<CanvasElement>)}
               />
-              <NumInput
-                label="H"
-                value={(element as RectElement).height}
-                min={1}
-                onChange={(v) => update({ height: Math.max(1, v) } as Partial<CanvasElement>)}
-              />
-            </div>
+            </>
           )}
           {element.type === "circle" && (
             <NumInput
@@ -280,7 +424,7 @@ export function PropertiesPanel({
         </Section>
 
         {/* Appearance */}
-        <Section title="Appearance">
+        <Section title="Fill & Opacity">
           <ColorInput
             label={element.type === "text" ? "Text Color" : "Fill"}
             value={element.fill}
@@ -293,6 +437,102 @@ export function PropertiesPanel({
             max={100}
             onChange={(v) => update({ opacity: Math.min(1, Math.max(0, v / 100)) } as Partial<CanvasElement>)}
           />
+        </Section>
+
+        {/* Border / Stroke */}
+        <Section title="Stroke / Border">
+          <div className="grid grid-cols-2 gap-2">
+            <NumInput
+              label="Width"
+              value={element.strokeWidth ?? 0}
+              min={0}
+              max={30}
+              onChange={(v) => update({ strokeWidth: Math.max(0, v) } as Partial<CanvasElement>)}
+            />
+            <div className="flex flex-col gap-1 justify-end">
+              {(element.strokeWidth ?? 0) > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => update({ strokeWidth: 0, stroke: undefined } as Partial<CanvasElement>)}
+                  className="text-[10px] text-slate-400 hover:text-red-500 py-1"
+                >
+                  Remove
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => update({ strokeWidth: 2, stroke: "#6366f1" } as Partial<CanvasElement>)}
+                  className="text-[10px] text-indigo-600 hover:underline py-1 font-medium"
+                >
+                  + Add Stroke
+                </button>
+              )}
+            </div>
+          </div>
+          {(element.strokeWidth ?? 0) > 0 && (
+            <ColorInput
+              label="Stroke Color"
+              value={element.stroke || "#6366f1"}
+              onChange={(v) => update({ stroke: v } as Partial<CanvasElement>)}
+            />
+          )}
+        </Section>
+
+        {/* Shadow / Effects */}
+        <Section title="Shadow / Effects">
+          <div className="grid grid-cols-2 gap-2">
+            <NumInput
+              label="Blur"
+              value={element.shadowBlur ?? 0}
+              min={0}
+              max={60}
+              onChange={(v) => update({ shadowBlur: Math.max(0, v) } as Partial<CanvasElement>)}
+            />
+            <div className="flex flex-col gap-1 justify-end">
+              {(element.shadowBlur ?? 0) > 0 || !!element.shadowColor ? (
+                <button
+                  type="button"
+                  onClick={() => update({ shadowBlur: 0, shadowColor: undefined, shadowOffsetX: 0, shadowOffsetY: 0 } as Partial<CanvasElement>)}
+                  className="text-[10px] text-slate-400 hover:text-red-500 py-1"
+                >
+                  Remove
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => update({ shadowBlur: 14, shadowColor: "#000000", shadowOffsetX: 0, shadowOffsetY: 6 } as Partial<CanvasElement>)}
+                  className="text-[10px] text-indigo-600 hover:underline py-1 font-medium"
+                >
+                  + Add Shadow
+                </button>
+              )}
+            </div>
+          </div>
+          {((element.shadowBlur ?? 0) > 0 || !!element.shadowColor) && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <NumInput
+                  label="Offset X"
+                  value={element.shadowOffsetX ?? 0}
+                  min={-40}
+                  max={40}
+                  onChange={(v) => update({ shadowOffsetX: v } as Partial<CanvasElement>)}
+                />
+                <NumInput
+                  label="Offset Y"
+                  value={element.shadowOffsetY ?? 0}
+                  min={-40}
+                  max={40}
+                  onChange={(v) => update({ shadowOffsetY: v } as Partial<CanvasElement>)}
+                />
+              </div>
+              <ColorInput
+                label="Shadow Color"
+                value={element.shadowColor || "#000000"}
+                onChange={(v) => update({ shadowColor: v } as Partial<CanvasElement>)}
+              />
+            </>
+          )}
         </Section>
 
         {/* Text-specific */}
